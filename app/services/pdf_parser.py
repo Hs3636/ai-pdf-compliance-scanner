@@ -1,52 +1,37 @@
-import fitz  # PyMuPDF
-from typing import List, Dict
+import fitz
+from typing import Dict, Any, List
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-def preprocess_text(text: str) -> str:
+def extract_text_from_pdf(state: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Applies basic text preprocessing.
-    Currently just strips leading/trailing whitespaces and removes excessive newlines.
+    Extracts text from a PDF document in memory using PyMuPDF.
     """
-    if not text:
-        return ""
+    logger.info("Starting PDF text extraction...")
+    pdf_bytes = state.get("pdf_bytes")
     
-    # Basic strip
-    cleaned = text.strip()
-    
-    # Replace multiple spaces/newlines with single spaces if necessary,
-    # but for PDFs we often want to keep paragraphs, so we'll just stick to basic stripping for now
-    # as per phase 2 plan.
-    return cleaned
-
-def parse_pdf(file_path: str) -> List[Dict[str, str]]:
-    """
-    Opens a PDF file and extracts text page by page.
-    Returns a list of dictionaries, where each dict represents a page.
-    """
-    pages_data = []
+    if not pdf_bytes:
+        logger.error("No PDF bytes provided in the state.")
+        return {"errors": ["No PDF bytes provided"]}
+        
+    extracted_pages = []
     
     try:
-        logger.info(f"Starting PDF extraction for: {file_path}")
-        # Open document
-        doc = fitz.open(file_path)
-        
+        # Open PDF from memory stream
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         for page_num in range(len(doc)):
-            page = doc.load_page(page_num)
-            text = page.get_text("text")
-            
-            cleaned_text = preprocess_text(text)
-            
-            pages_data.append({
+            page = doc[page_num]
+            text = page.get_text()
+            extracted_pages.append({
                 "page_number": page_num + 1,
-                "text": cleaned_text
+                "text": text
             })
             
-        doc.close()
-        logger.info(f"Successfully extracted {len(pages_data)} pages from {file_path}")
-        return pages_data
+        logger.info(f"Successfully extracted text from {len(doc)} pages.")
         
     except Exception as e:
-        logger.error(f"Error parsing PDF {file_path}: {e}")
-        raise
+        logger.error(f"Failed to extract text from PDF: {e}")
+        return {"errors": [f"PDF parsing error: {e}"]}
+        
+    return {"extracted_pages": extracted_pages}

@@ -9,3 +9,5 @@ data/processed/*
 !data/processed/.gitkeep
 data/reports/*
 !data/reports/.gitkeep
+FUTURE_IMPROVEMENTS.md
+IMPLEMENTATION_PLAN.md

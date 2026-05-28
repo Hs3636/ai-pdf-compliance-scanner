@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import json
 from app.workflows.graph import build_graph
-from app.config.rules import load_rules, save_rules
+from app.config.rules import DEFAULT_RULES
 from app.utils.logger import get_logger
 
 # Load environment variables
@@ -25,85 +25,78 @@ def main():
         st.header("Upload and Scan")
         st.write("Upload a PDF to extract its text and run compliance checks via LangGraph orchestration.")
         
-        uploaded_file = st.file_uploader("Choose a PDF file", type="pdf", key="pdf_uploader")
-        
-        if uploaded_file is not None:
-            if st.button("Run Compliance Scan", type="primary"):
-                with st.status("Executing LangGraph Pipeline...", expanded=True) as status:
-                    try:
-                        # 1. Save uploaded file temporarily
-                        st.write("Saving uploaded file...")
-                        file_path = os.path.join(UPLOADS_DIR, uploaded_file.name)
-                        os.makedirs(UPLOADS_DIR, exist_ok=True)
-                        with open(file_path, "wb") as f:
-                            f.write(uploaded_file.getbuffer())
-                        logger.info(f"Saved uploaded file to {file_path}")
-                        
-                        # 2. Compile Graph
-                        st.write("Building workflow graph...")
-                        graph = build_graph()
-                        
-                        # 3. Define Initial State
-                        initial_state = {
-                            "file_path": file_path,
-                            "extracted_pages": [],
-                            "violations": [],
-                            "report_paths": {},
-                            "errors": []
-                        }
-                        
-                        # 4. Invoke Graph
-                        st.write("Running compliance agents...")
-                        result_state = graph.invoke(initial_state)
-                        
-                        if result_state.get("errors"):
-                            status.update(label="Workflow encountered errors", state="error", expanded=False)
-                            st.error(f"Workflow encountered errors: {result_state['errors']}")
-                        else:
-                            status.update(label="Workflow executed successfully!", state="complete", expanded=False)
-                            st.success("Scan completed successfully!")
+        with st.container():
+            st.markdown("### 1. Upload Document")
+            uploaded_file = st.file_uploader("Upload a PDF file to scan for compliance violations", type=["pdf"])
+            
+            if uploaded_file is not None:
+                st.success(f"File '{uploaded_file.name}' uploaded successfully!")
+                
+                if st.button("🚀 Run Compliance Scan", type="primary", use_container_width=True):
+                    with st.spinner("Processing document... this may take a minute."):
+                        try:
+                            # 1. Grab file bytes
+                            pdf_bytes = uploaded_file.getvalue()
                             
-                            st.session_state["result_state"] = result_state
+                            # 2. Build Graph
+                            graph = build_graph()
                             
-                    except Exception as e:
-                        status.update(label="Workflow execution failed", state="error", expanded=False)
-                        st.error(f"Workflow execution failed: {e}")
-                        logger.error(f"Workflow error: {e}")
+                            # 3. Define Initial State
+                            initial_state = {
+                                "pdf_bytes": pdf_bytes,
+                                "extracted_pages": [],
+                                "violations": [],
+                                "report_pdf_bytes": b"",
+                                "report_json_str": "",
+                                "errors": [],
+                                "custom_rules": st.session_state.get("rules", DEFAULT_RULES)
+                            }
+                            
+                            # 4. Invoke Graph
+                            result = graph.invoke(initial_state)
+                            
+                            # 5. Handle Results
+                            if result.get("errors"):
+                                st.error("Errors encountered during scan:")
+                                for err in result["errors"]:
+                                    st.write(f"- {err}")
+                            else:
+                                st.success("Scan completed successfully!")
+                                st.session_state["result_state"] = result
+                                
+                        except Exception as e:
+                            st.error(f"Workflow execution failed: {e}")
+                            logger.error(f"Workflow error: {e}")
                         
         if "result_state" in st.session_state:
             result_state = st.session_state["result_state"]
             st.divider()
             
             st.subheader("📥 Download Reports")
-            report_paths = result_state.get("report_paths", {})
             col_json, col_pdf = st.columns(2)
             
-            json_path = report_paths.get("json")
-            pdf_path = report_paths.get("pdf")
+            report_json_str = result_state.get("report_json_str", "")
+            report_pdf_bytes = result_state.get("report_pdf_bytes", b"")
             
-            if json_path and os.path.exists(json_path):
-                with open(json_path, "r") as f:
-                    json_data = f.read()
+            if report_json_str:
                 col_json.download_button(
                     label="Download JSON Report",
-                    data=json_data,
-                    file_name=os.path.basename(json_path),
+                    data=report_json_str,
+                    file_name="compliance_data.json",
                     mime="application/json",
                     use_container_width=True
                 )
             else:
                 col_json.info("JSON report not available.")
                 
-            if pdf_path and os.path.exists(pdf_path):
-                with open(pdf_path, "rb") as f:
-                    pdf_data = f.read()
+            if report_pdf_bytes:
                 col_pdf.download_button(
                     label="Download PDF Report",
-                    data=pdf_data,
-                    file_name=os.path.basename(pdf_path),
+                    data=report_pdf_bytes,
+                    file_name="compliance_report.pdf",
                     mime="application/pdf",
-                    type="primary",
-                    use_container_width=True
+                    use_container_width=True,
+                    type="primary"
                 )
             else:
                 col_pdf.info("PDF report not available.")
@@ -163,25 +156,34 @@ def main():
         
         # Initialize session state for rules if not present
         if "rules" not in st.session_state:
-            st.session_state["rules"] = load_rules()
+            st.session_state["rules"] = DEFAULT_RULES
             
         st.subheader("Current Rules")
         st.write("Edit rules directly below, or click the delete button to remove them. Click 'Save All Changes' when done.")
         
         # Header row
-        hcol1, hcol2, hcol3, hcol4 = st.columns([1, 3, 5, 1])
+        hcol1, hcol2, hcol3, hcol4, hcol5 = st.columns([1, 2, 4, 2, 1])
         hcol1.markdown("**Enabled**")
         hcol2.markdown("**Rule Name**")
         hcol3.markdown("**Description**")
-        hcol4.markdown("**Action**")
+        hcol4.markdown("**Severity**")
+        hcol5.markdown("**Action**")
         
         to_delete = None
+        severity_options = ["Auto (LLM Decides)", "Critical", "High", "Medium", "Low"]
         for i, rule in enumerate(st.session_state["rules"]):
-            col1, col2, col3, col4 = st.columns([1, 3, 5, 1])
+            col1, col2, col3, col4, col5 = st.columns([1, 2, 4, 2, 1])
             st.session_state["rules"][i]["enabled"] = col1.checkbox("Enabled", value=rule.get("enabled", True), key=f"en_{i}", label_visibility="collapsed")
             st.session_state["rules"][i]["name"] = col2.text_input("Name", value=rule.get("name", ""), key=f"nm_{i}", label_visibility="collapsed")
             st.session_state["rules"][i]["description"] = col3.text_input("Description", value=rule.get("description", ""), key=f"desc_{i}", label_visibility="collapsed")
-            if col4.button("🗑️ Delete", key=f"del_{i}"):
+            
+            # Severity Dropdown
+            current_sev = rule.get("severity", "Auto (LLM Decides)")
+            if current_sev not in severity_options:
+                current_sev = "Auto (LLM Decides)"
+            st.session_state["rules"][i]["severity"] = col4.selectbox("Severity", severity_options, index=severity_options.index(current_sev), key=f"sev_{i}", label_visibility="collapsed")
+            
+            if col5.button("🗑️ Delete", key=f"del_{i}"):
                 to_delete = i
                 
         if to_delete is not None:
@@ -194,6 +196,7 @@ def main():
             with st.form("add_rule_form", clear_on_submit=True):
                 new_rule_name = st.text_input("Rule Name", placeholder="e.g., Salary Check")
                 new_rule_desc = st.text_area("Rule Description", placeholder="e.g., Flag any mention of employee salaries.")
+                new_rule_severity = st.selectbox("Target Severity", ["Auto (LLM Decides)", "Critical", "High", "Medium", "Low"])
                 
                 submitted = st.form_submit_button("Add Rule")
                 
@@ -204,6 +207,7 @@ def main():
                         st.session_state["rules"].append({
                             "name": new_rule_name.strip(),
                             "description": new_rule_desc.strip(),
+                            "severity": new_rule_severity,
                             "enabled": True
                         })
                         st.success(f"Rule '{new_rule_name}' added to the table above!")
@@ -226,7 +230,6 @@ def main():
                         rule["name"] = rule["name"].strip()
                         rule["description"] = rule["description"].strip()
                         
-                    save_rules(st.session_state["rules"])
                     st.success("Rules saved successfully! The next scan will use these settings.")
                 except Exception as e:
                     st.error(f"Failed to save rules. Details: {e}")
