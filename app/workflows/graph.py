@@ -7,6 +7,7 @@ logger = get_logger(__name__)
 
 # 1. Define the workflow state schema
 class WorkflowState(TypedDict):
+    file_name: str
     pdf_bytes: bytes
     extracted_pages: List[Dict[str, Any]]
     violations: List[Dict[str, Any]]

@@ -43,6 +43,7 @@ def main():
                             
                             # 3. Define Initial State
                             initial_state = {
+                                "file_name": uploaded_file.name,
                                 "pdf_bytes": pdf_bytes,
                                 "extracted_pages": [],
                                 "violations": [],
