@@ -1,0 +1,17 @@
+[
+    {
+        "name": "Confidentiality",
+        "description": "Flag any mention of employee salaries or compensation packages.",
+        "enabled": true
+    },
+    {
+        "name": "Salary Check",
+        "description": "Flag any mention of employee salaries or compensation packages.",
+        "enabled": true
+    },
+    {
+        "name": "Salary Check",
+        "description": "Flay any salaries mentoined in the document",
+        "enabled": true
+    }
+]
