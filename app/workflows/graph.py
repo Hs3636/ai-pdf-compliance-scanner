@@ -39,13 +39,16 @@ def compliance_checks_node(state: WorkflowState) -> Dict[str, Any]:
     from app.agents.unified_agent import run_unified_scan
     
     all_violations = state.get("violations", [])
+    current_errors = state.get("errors", [])
     
     # Run the mega-agent over batched pages
-    unified_violations = run_unified_scan(state["extracted_pages"], state.get("custom_rules", []))
+    result = run_unified_scan(state["extracted_pages"], state.get("custom_rules", []))
     
-    all_violations.extend(unified_violations)
+    all_violations.extend(result.get("violations", []))
+    if result.get("errors"):
+        current_errors.extend(result["errors"])
     
-    return {"violations": all_violations}
+    return {"violations": all_violations, "errors": current_errors}
 
 def report_generation_node(state: WorkflowState) -> Dict[str, Any]:
     logger.info("Executing node: report_generation_node")

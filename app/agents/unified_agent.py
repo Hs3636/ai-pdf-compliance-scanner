@@ -66,12 +66,14 @@ def get_unified_chain(active_rules: List[Dict[str, Any]]):
     
     return prompt | llm | parser
 
-def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Batches pages and runs the Unified Agent to heavily reduce API calls.
+    Returns a dictionary with 'violations' and 'errors'.
     """
     logger.info("Starting Unified Mega-Scan across all pages.")
     all_violations = []
+    errors = []
     
     active_rules = [r for r in custom_rules if r.get("enabled", False)]
     
@@ -79,7 +81,7 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
         chain = get_unified_chain(active_rules)
     except Exception as e:
         logger.error(f"Failed to initialize Unified chain: {e}")
-        return [{"type": "SystemError", "subtype": "Error", "value": "Failed to initialize LLM", "page": 0, "severity": "High"}]
+        return {"violations": [], "errors": ["Failed to initialize LLM pipeline. Ensure API keys are correct."]}
 
     # Batching logic: 5 pages per batch
     BATCH_SIZE = 5
@@ -114,7 +116,13 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
                 })
                 
         except Exception as e:
+            err_msg = str(e).lower()
             logger.error(f"Error scanning batch: {e}")
+            if "429" in err_msg or "rate limit" in err_msg or "exhausted" in err_msg:
+                errors.append("LLM Rate Limit / Token Quota exhausted. Please try again after some time.")
+                break # Stop processing further batches if rate limited
+            else:
+                errors.append(f"LLM API Error on pages {batch[0].get('page_number')}-{batch[-1].get('page_number')}: {e}")
             
     logger.info(f"Unified Scan complete. Found {len(all_violations)} total violations.")
-    return all_violations
+    return {"violations": all_violations, "errors": errors}
