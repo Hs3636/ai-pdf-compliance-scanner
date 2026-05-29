@@ -20,6 +20,11 @@ def extract_text_from_pdf(state: Dict[str, Any]) -> Dict[str, Any]:
     try:
         # Open PDF from memory stream
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        
+        if len(doc) > 150:
+            logger.error(f"PDF exceeds 150-page limit (Pages: {len(doc)}).")
+            return {"errors": [f"PDF exceeds the 150-page limit (Current pages: {len(doc)})."]}
+            
         for page_num in range(len(doc)):
             page = doc[page_num]
             text = page.get_text()

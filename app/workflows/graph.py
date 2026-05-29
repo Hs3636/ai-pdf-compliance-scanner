@@ -15,6 +15,7 @@ class WorkflowState(TypedDict):
     report_json_str: str
     errors: List[str]
     custom_rules: List[Dict[str, Any]]
+    core_rules: Dict[str, Dict[str, Any]]
 
 # 2. Define Nodes
 
@@ -42,7 +43,11 @@ def compliance_checks_node(state: WorkflowState) -> Dict[str, Any]:
     current_errors = state.get("errors", [])
     
     # Run the mega-agent over batched pages
-    result = run_unified_scan(state["extracted_pages"], state.get("custom_rules", []))
+    result = run_unified_scan(
+        state["extracted_pages"], 
+        state.get("custom_rules", []),
+        state.get("core_rules", {})
+    )
     
     all_violations.extend(result.get("violations", []))
     if result.get("errors"):
