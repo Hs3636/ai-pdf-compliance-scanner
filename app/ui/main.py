@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 import json
+import base64
 from app.workflows.graph import build_graph
 from app.config.rules import DEFAULT_RULES, CORE_RULES
 from app.utils.logger import get_logger
@@ -175,31 +176,47 @@ def main():
                     col5.metric("🟢 Low", low)
                     
                     st.divider()
-                    st.subheader("Detailed Violations")
+                    st.subheader("Document & Detailed Violations")
                     
-                    # Convert list of dicts to DataFrame for better display
-                    df = pd.DataFrame(violations)
-                    # Reorder columns if they exist
-                    cols_order = ["page", "type", "subtype", "severity", "value"]
-                    # Keep only columns that exist
-                    cols_order = [c for c in cols_order if c in df.columns]
+                    doc_col, table_col = st.columns([1, 1.2])
                     
-                    # Optionally add remaining columns
-                    for c in df.columns:
-                        if c not in cols_order:
-                            cols_order.append(c)
+                    with doc_col:
+                        st.markdown("#### Document Viewer")
+                        pdf_bytes_preview = result_state.get("pdf_bytes", b"")
+                        if pdf_bytes_preview:
+                            base64_pdf = base64.b64encode(pdf_bytes_preview).decode('utf-8')
+                            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800px" type="application/pdf" style="border: 1px solid #ccc; border-radius: 8px;"></iframe>'
+                            st.markdown(pdf_display, unsafe_allow_html=True)
+                        else:
+                            st.info("PDF preview not available.")
                             
-                    if not df.empty:
-                        df = df[cols_order]
-                        # Enforce text wrapping using st.column_config.TextColumn
-                        st.dataframe(
-                            df, 
-                            use_container_width=True, 
-                            hide_index=True,
-                            column_config={
-                                "value": st.column_config.TextColumn("Value", width="large", help="The exact text of the extracted violation")
-                            }
-                        )
+                    with table_col:
+                        st.markdown("#### Violations")
+                        # Convert list of dicts to DataFrame for better display
+                        df = pd.DataFrame(violations)
+                        # Reorder columns if they exist
+                        cols_order = ["page", "type", "subtype", "severity", "confidence_score", "value"]
+                        # Keep only columns that exist
+                        cols_order = [c for c in cols_order if c in df.columns]
+                        
+                        # Optionally add remaining columns
+                        for c in df.columns:
+                            if c not in cols_order:
+                                cols_order.append(c)
+                                
+                        if not df.empty:
+                            df = df[cols_order]
+                            # Enforce text wrapping using st.column_config.TextColumn
+                            st.dataframe(
+                                df, 
+                                use_container_width=True, 
+                                hide_index=True,
+                                height=800,
+                                column_config={
+                                    "value": st.column_config.TextColumn("Value", width="large", help="The exact text of the extracted violation"),
+                                    "confidence_score": st.column_config.ProgressColumn("Confidence", help="LLM Confidence Score", format="%.2f", min_value=0, max_value=1)
+                                }
+                            )
                 
     with tab2:
         st.header("📝 Rules Engine")

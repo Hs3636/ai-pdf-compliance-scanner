@@ -55,6 +55,18 @@ def compliance_checks_node(state: WorkflowState) -> Dict[str, Any]:
     
     return {"violations": all_violations, "errors": current_errors}
 
+def highlight_pdf_node(state: WorkflowState) -> Dict[str, Any]:
+    logger.info("Executing node: highlight_pdf_node")
+    from app.services.pdf_parser import highlight_pdf_violations
+    
+    violations = state.get("violations", [])
+    pdf_bytes = state.get("pdf_bytes")
+    
+    if violations and pdf_bytes:
+        highlighted_bytes = highlight_pdf_violations(pdf_bytes, violations)
+        return {"pdf_bytes": highlighted_bytes}
+    return {}
+
 def report_generation_node(state: WorkflowState) -> Dict[str, Any]:
     logger.info("Executing node: report_generation_node")
     from app.reports.generator import generate_reports
@@ -70,11 +82,13 @@ def build_graph() -> StateGraph:
     
     graph.add_node("extract_text", extract_text_node)
     graph.add_node("compliance_checks", compliance_checks_node)
+    graph.add_node("highlight_pdf", highlight_pdf_node)
     graph.add_node("report_generation", report_generation_node)
     
     graph.add_edge(START, "extract_text")
     graph.add_edge("extract_text", "compliance_checks")
-    graph.add_edge("compliance_checks", "report_generation")
+    graph.add_edge("compliance_checks", "highlight_pdf")
+    graph.add_edge("highlight_pdf", "report_generation")
     graph.add_edge("report_generation", END)
     
     return graph.compile()

@@ -14,6 +14,7 @@ class UnifiedViolation(BaseModel):
     value: str = Field(description="The exact text snippet that violated the rule.")
     page: int = Field(description="The integer page number where this violation was found.")
     severity: str = Field(description="Severity classification: 'Critical', 'High', 'Medium', or 'Low'.")
+    confidence_score: float = Field(description="Confidence score between 0.0 and 1.0 indicating certainty of the violation.")
 
 class UnifiedViolationsList(BaseModel):
     violations: List[UnifiedViolation]
@@ -56,6 +57,7 @@ def get_unified_chain(active_rules: List[Dict[str, Any]], active_core_rules: Lis
          "- For every violation found across ANY domain, extract the exact text as the 'value'.\n"
          "- Set 'type' to one of the Domain names you evaluated (e.g., 'PII Detection', 'CustomRule').\n"
          "- Determine 'severity' per the domain rules above. For CustomRules, override with the user's explicit Target Severity if it is not 'Auto'.\n"
+         "- Provide a 'confidence_score' between 0.0 and 1.0 indicating how certain you are that this is a true violation.\n"
          "- CRITICAL: Ensure the 'page' field correctly matches the --- PAGE X --- marker the text was found under.\n"
          "- If no rules are violated in the entire batch, return an empty list of violations.\n\n"
          
@@ -121,7 +123,8 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
                     "subtype": v.get("subtype", "Unknown"),
                     "value": v.get("value", ""),
                     "page": v.get("page", 0),
-                    "severity": v.get("severity", "High")
+                    "severity": v.get("severity", "High"),
+                    "confidence_score": v.get("confidence_score", 1.0)
                 })
                 
         except Exception as e:
