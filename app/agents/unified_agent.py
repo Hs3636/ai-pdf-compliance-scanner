@@ -109,10 +109,7 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
     callbacks = []
     if os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY"):
         try:
-            langfuse_handler = CallbackHandler(
-                session_id=f"PDF_Scan_{file_name}",
-                trace_name=f"Compliance Scan: {file_name}"
-            )
+            langfuse_handler = CallbackHandler()
             callbacks.append(langfuse_handler)
         except Exception as e:
             logger.warning(f"Failed to initialize Langfuse CallbackHandler: {e}")
@@ -137,7 +134,15 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
         
         try:
             logger.info(f"Scanning batch (Pages {batch[0].get('page_number')} to {batch[-1].get('page_number')})...")
-            result = chain.invoke({"text_batch": batch_text}, config={"callbacks": callbacks} if callbacks else None)
+            
+            invoke_config = {
+                "run_name": f"Scan: {file_name}",
+                "metadata": {"session_id": f"Session_{file_name}"}
+            }
+            if callbacks:
+                invoke_config["callbacks"] = callbacks
+                
+            result = chain.invoke({"text_batch": batch_text}, config=invoke_config)
             
             extracted_violations = result.get("violations", [])
             for v in extracted_violations:
