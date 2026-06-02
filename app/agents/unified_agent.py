@@ -4,7 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 from app.utils.logger import get_logger
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 import os
 
 logger = get_logger(__name__)
