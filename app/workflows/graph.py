@@ -41,12 +41,14 @@ def compliance_checks_node(state: WorkflowState) -> Dict[str, Any]:
     
     all_violations = state.get("violations", [])
     current_errors = state.get("errors", [])
+    file_name = state.get("file_name", "Unknown Document")
     
     # Run the mega-agent over batched pages
     result = run_unified_scan(
         state["extracted_pages"], 
         state.get("custom_rules", []),
-        state.get("core_rules", {})
+        state.get("core_rules", {}),
+        file_name
     )
     
     all_violations.extend(result.get("violations", []))

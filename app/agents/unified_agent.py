@@ -4,6 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 from app.utils.logger import get_logger
+from langfuse.callback import CallbackHandler
 import os
 
 logger = get_logger(__name__)
@@ -82,7 +83,7 @@ def get_unified_chain(active_rules: List[Dict[str, Any]], active_core_rules: Lis
     
     return prompt | llm | parser
 
-def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, Any]], core_rules: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, Any]], core_rules: Dict[str, Dict[str, Any]], file_name: str = "Unknown Document") -> Dict[str, Any]:
     """
     Batches pages and runs the Unified Agent to heavily reduce API calls.
     Returns a dictionary with 'violations' and 'errors'.
@@ -103,6 +104,18 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
     except Exception as e:
         logger.error(f"Failed to initialize Unified chain: {e}")
         return {"violations": [], "errors": ["Failed to initialize LLM pipeline. Ensure API keys are correct."]}
+        
+    # Setup Langfuse handler if keys exist
+    callbacks = []
+    if os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY"):
+        try:
+            langfuse_handler = CallbackHandler(
+                session_id=f"PDF_Scan_{file_name}",
+                trace_name=f"Compliance Scan: {file_name}"
+            )
+            callbacks.append(langfuse_handler)
+        except Exception as e:
+            logger.warning(f"Failed to initialize Langfuse CallbackHandler: {e}")
 
     # Batching logic: 5 pages per batch
     BATCH_SIZE = 5
@@ -124,7 +137,7 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
         
         try:
             logger.info(f"Scanning batch (Pages {batch[0].get('page_number')} to {batch[-1].get('page_number')})...")
-            result = chain.invoke({"text_batch": batch_text})
+            result = chain.invoke({"text_batch": batch_text}, config={"callbacks": callbacks} if callbacks else None)
             
             extracted_violations = result.get("violations", [])
             for v in extracted_violations:
