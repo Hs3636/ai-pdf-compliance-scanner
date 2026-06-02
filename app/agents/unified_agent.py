@@ -9,6 +9,7 @@ import os
 logger = get_logger(__name__)
 
 class UnifiedViolation(BaseModel):
+    reasoning: str = Field(description="Step-by-step reasoning explaining why this text violates the rule. Think before extracting the value.")
     type: str = Field(description="The primary category (e.g. 'PII Detection', 'Toxicity Filter', 'CustomRule').")
     subtype: str = Field(description="Specific type, e.g., 'SSN', 'Project Titan', 'Hate Speech', or the exact Rule Name.")
     value: str = Field(description="The exact text snippet that violated the rule.")
@@ -47,18 +48,28 @@ def get_unified_chain(active_rules: List[Dict[str, Any]], active_core_rules: Lis
          "You are a strict Unified Compliance & Security Auditor scanning document batches. "
          "Your task is to evaluate the provided text against multiple compliance domains simultaneously.\n\n"
          
-         "DOMAINS TO CHECK:\n"
+         "<core_rules>\n"
          "{core_rules_text}"
-         "{custom_rules_marker} Custom Rules: Evaluate against the following user-defined rules:\n"
+         "</core_rules>\n\n"
+         
+         "<custom_rules>\n"
          "{rules_text}\n"
+         "</custom_rules>\n\n"
+         
+         "<negative_constraints>\n"
+         "- Do NOT flag generic, publicly available information (like public company addresses or generic customer support emails) as Confidential or PII unless a specific custom rule overrides this.\n"
+         "- Do NOT hallucinate violations. If a page strictly adheres to compliance, do not force a match.\n"
+         "- Do NOT flag obvious placeholders (e.g., 'John Doe', '555-0199', 'test@example.com') as actual PII.\n"
+         "</negative_constraints>\n\n"
          
          "INSTRUCTIONS:\n"
-         "- Read the document text which is separated by --- PAGE X --- markers.\n"
+         "- Read the document text which is enclosed in <document> tags and separated by <page number=\"X\"> tags.\n"
+         "- Always provide your 'reasoning' first before extracting the violation value.\n"
          "- For every violation found across ANY domain, extract the exact text as the 'value'.\n"
          "- Set 'type' to one of the Domain names you evaluated (e.g., 'PII Detection', 'CustomRule').\n"
          "- Determine 'severity' per the domain rules above. For CustomRules, override with the user's explicit Target Severity if it is not 'Auto'.\n"
          "- Provide a 'confidence_score' between 0.0 and 1.0 indicating how certain you are that this is a true violation.\n"
-         "- CRITICAL: Ensure the 'page' field correctly matches the --- PAGE X --- marker the text was found under.\n"
+         "- CRITICAL: Ensure the 'page' field correctly matches the <page number=\"X\"> tag the text was found under.\n"
          "- If no rules are violated in the entire batch, return an empty list of violations.\n\n"
          
          "Format your output strictly according to these instructions:\n{format_instructions}"),
@@ -66,8 +77,7 @@ def get_unified_chain(active_rules: List[Dict[str, Any]], active_core_rules: Lis
     ]).partial(
         format_instructions=parser.get_format_instructions(),
         rules_text=rules_text if rules_text else "No custom rules enabled.",
-        core_rules_text=core_rules_text,
-        custom_rules_marker=f"{len(active_core_rules) + 1}."
+        core_rules_text=core_rules_text
     )
     
     return prompt | llm | parser
@@ -105,12 +115,12 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
             page_num = page.get("page_number", 0)
             text = page.get("text", "").strip()
             if text:
-                batch_text_parts.append(f"--- PAGE {page_num} ---\n{text}\n")
+                batch_text_parts.append(f"<page number=\"{page_num}\">\n{text}\n</page>")
                 
         if not batch_text_parts:
             continue
             
-        batch_text = "\n".join(batch_text_parts)
+        batch_text = "<document>\n" + "\n".join(batch_text_parts) + "\n</document>"
         
         try:
             logger.info(f"Scanning batch (Pages {batch[0].get('page_number')} to {batch[-1].get('page_number')})...")
@@ -119,6 +129,7 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
             extracted_violations = result.get("violations", [])
             for v in extracted_violations:
                 all_violations.append({
+                    "reasoning": v.get("reasoning", ""),
                     "type": v.get("type", "Unknown"),
                     "subtype": v.get("subtype", "Unknown"),
                     "value": v.get("value", ""),

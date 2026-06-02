@@ -195,7 +195,7 @@ def main():
                         # Convert list of dicts to DataFrame for better display
                         df = pd.DataFrame(violations)
                         # Reorder columns if they exist
-                        cols_order = ["page", "type", "subtype", "severity", "confidence_score", "value"]
+                        cols_order = ["page", "type", "subtype", "severity", "confidence_score", "value", "reasoning"]
                         # Keep only columns that exist
                         cols_order = [c for c in cols_order if c in df.columns]
                         
@@ -214,6 +214,7 @@ def main():
                                 height=800,
                                 column_config={
                                     "value": st.column_config.TextColumn("Value", width="large", help="The exact text of the extracted violation"),
+                                    "reasoning": st.column_config.TextColumn("Reasoning", width="large", help="LLM's step-by-step reasoning for flagging this violation"),
                                     "confidence_score": st.column_config.ProgressColumn("Confidence", help="LLM Confidence Score", format="%.2f", min_value=0, max_value=1)
                                 }
                             )
