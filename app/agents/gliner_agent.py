@@ -1,4 +1,14 @@
+import os
+import torch
 from typing import List, Dict, Any
+
+# EXTREMELY IMPORTANT for 512MB RAM limits:
+# PyTorch will try to allocate a thread for every CPU core on the host machine.
+# On a cloud server, this could be 32+ cores, instantly causing an Out Of Memory (OOM) crash.
+# Restricting to 1 thread keeps memory usage tiny.
+torch.set_num_threads(1)
+os.environ["MALLOC_ARENA_MAX"] = "2" # Reduces memory fragmentation
+
 from gliner import GLiNER
 from app.utils.logger import get_logger
 
