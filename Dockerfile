@@ -12,6 +12,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Suppress ONNX GPU discovery warning on CPU-only cloud environments
+ENV CUDA_VISIBLE_DEVICES=""
+ENV ORT_LOGGING_LEVEL=3
+
+# Pre-download the GLiNER model during the build phase so it doesn't happen at runtime
+RUN python -c "from gliner import GLiNER; GLiNER.from_pretrained('urchade/gliner_small-v2.1')"
+
 # Copy application code
 COPY . .
 
