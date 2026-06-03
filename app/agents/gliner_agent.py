@@ -14,6 +14,10 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+import onnxruntime as ort
+# Suppress C++ warnings from ONNXRuntime about missing GPUs
+ort.set_default_logger_severity(3)
+
 # Load model globally so it stays in memory after the first load
 try:
     logger.info("Loading GLiNER-PII model...")
