@@ -5,12 +5,13 @@ A blazingly fast, fully stateless, AI-driven compliance engine built to autonomo
 ## 🚀 Features
 
 - **100% Stateless Architecture**: No documents or parsed text are ever saved to disk. Uploads, analysis, and report generation occur entirely in memory, making it highly secure and natively safe for concurrent multi-user cloud deployments (like Render or Vercel).
-- **Unified Mega-Agent**: Powered by LangGraph and LangChain, the backend utilizes a single highly optimized "Mega-Prompt" via Groq (Llama-3.3-70b-versatile) to simultaneously evaluate multiple compliance domains:
-  - **PII Detection**: SSNs, Emails, Phone Numbers, Credit Cards.
-  - **Confidentiality**: Trade secrets, proprietary flags, and unreleased financials.
-  - **Toxicity**: Hate speech and unlawful language.
-  - **Custom Rules**: Your own company-specific guidelines.
-- **Smart Page Batching**: Slashes LLM API costs by 95% by grouping and processing 5 PDF pages per batch using visual text markers.
+- **Hybrid AI Architecture**: Powered by LangGraph, the backend utilizes two specialized models:
+  - **GLiNER (Local NER)**: A lightweight, in-memory model (`urchade/gliner_small-v2.1`) dedicated solely to high-speed PII Detection (SSNs, Emails, Phone Numbers, Credit Cards, etc.).
+  - **Unified Mega-Agent**: A Groq-powered LLM (`llama-3.3-70b-versatile`) utilizing a single highly optimized "Mega-Prompt" to simultaneously evaluate complex compliance domains:
+    - **Confidentiality**: Trade secrets, proprietary flags, and unreleased financials.
+    - **Toxicity**: Hate speech and unlawful language.
+    - **Custom Rules**: Your own company-specific guidelines.
+- **Smart Page Batching**: Slashes LLM API costs by 95% by grouping and processing 5 PDF pages per batch for the LLM agent.
 - **Beautiful PDF Reporting**: Generates a visually stunning, downloadable PDF report via `ReportLab` complete with metadata, a grey summary tally, and color-coded tables grouping violations by Severity (Critical, High, Medium, Low).
 - **Interactive Rules Engine**: A sleek Streamlit UI allows you to add, edit, and toggle custom rules on the fly, including explicit Target Severity overrides. 
 
@@ -19,6 +20,7 @@ A blazingly fast, fully stateless, AI-driven compliance engine built to autonomo
 - **Frontend**: Streamlit
 - **Agent Orchestration**: LangGraph
 - **LLM Integration**: LangChain & ChatGroq (`llama-3.3-70b-versatile`)
+- **PII Detection Model**: GLiNER (`urchade/gliner_small-v2.1`) running locally in-memory
 - **PDF Extraction**: PyMuPDF (`fitz`)
 - **Report Generation**: ReportLab
 

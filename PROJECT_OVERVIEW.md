@@ -42,7 +42,7 @@ Detect:
 - Names (optional enhancement)
 
 Approach:
-- Regex + LLM verification
+- Lightweight GLiNER NER Model (`urchade/gliner_small-v2.1`) running locally in-memory.
 
 ---
 
@@ -102,8 +102,9 @@ Approach:
 - LangGraph
 - LangChain
 
-## GenAI Models
-- Groq-hosted models
+## AI Models
+- Groq-hosted models (Llama 3.3 for reasoning)
+- GLiNER (Local lightweight NER for PII)
 
 ## PDF Processing
 - PyMuPDF (fitz)
@@ -127,10 +128,10 @@ PDF Text Extraction
 Page-wise Processing
         ↓
 Compliance Agents
-    ├── PII Checker
-    ├── Confidential Info Checker
+    ├── PII Checker (GLiNER Agent)
+    ├── Confidential Info Checker (Groq LLM)
     ├── UTF-8 Validator
-    └── Toxic Content Checker
+    └── Toxic Content Checker (Groq LLM)
         ↓
 Violation Aggregator
         ↓

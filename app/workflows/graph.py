@@ -38,16 +38,28 @@ def compliance_checks_node(state: WorkflowState) -> Dict[str, Any]:
     logger.info("Executing node: compliance_checks_node")
     
     from app.agents.unified_agent import run_unified_scan
+    from app.agents.gliner_agent import run_gliner_pii_scan
     
     all_violations = state.get("violations", [])
     current_errors = state.get("errors", [])
     file_name = state.get("file_name", "Unknown Document")
     
-    # Run the mega-agent over batched pages
+    core_rules = state.get("core_rules", {})
+    
+    # 1. Run GLiNER for PII if enabled
+    pii_rule = core_rules.get("PII", {})
+    if pii_rule.get("enabled", True) and "PII" in core_rules:
+        gliner_res = run_gliner_pii_scan(state["extracted_pages"])
+        all_violations.extend(gliner_res.get("violations", []))
+        current_errors.extend(gliner_res.get("errors", []))
+        
+    # 2. Run the mega-agent over batched pages for the rest
+    llm_core_rules = {k: v for k, v in core_rules.items() if k != "PII"}
+    
     result = run_unified_scan(
         state["extracted_pages"], 
         state.get("custom_rules", []),
-        state.get("core_rules", {}),
+        llm_core_rules,
         file_name
     )
     

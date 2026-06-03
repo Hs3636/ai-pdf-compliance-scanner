@@ -11,3 +11,4 @@ data/reports/*
 !data/reports/.gitkeep
 FUTURE_IMPROVEMENTS.md
 IMPLEMENTATION_PLAN.md
+explanation.md
