@@ -92,6 +92,28 @@ Approach:
 
 ---
 
+# Telemetry & Evaluation (Langfuse)
+
+The system is integrated with **Langfuse** to provide deep observability, cost tracking, and quality evaluation.
+
+## LLM-as-a-Judge Evaluator
+A custom asynchronous evaluator (`app/agents/evaluator.py`) automatically scores extracted violations (up to 3 per trace) using Groq on four metrics:
+- **Faithfulness**: Absence of hallucination.
+- **Rule Relevance**: Avoidance of false positives.
+- **Severity Accuracy**: Correctness of the severity assignment.
+- **Context Quality**: Quality of the text extraction window.
+
+These scores are pushed directly to Langfuse traces.
+
+## Dashboard Setup Guide (Langfuse UI)
+You can create a custom Analytics Dashboard directly inside Langfuse by navigating to the **Dashboards** tab, clicking **+ New Dashboard**, and adding the following recommended charts:
+1. **Total Traces & Observations**: Use *Traces* (Count) to see total scans.
+2. **API Calls & Token Usage**: Use *Generations* (Sum of Total Tokens, Total Cost) grouped by Model or Day.
+3. **Average Evaluation Scores**: Use *Scores* (Average) grouped by Name (Faithfulness, Relevance, etc.) to track extraction quality.
+4. **Latency/Duration**: Use *Traces* (Average Duration) to monitor speed.
+
+---
+
 # Tech Stack
 
 ## Frontend

@@ -14,6 +14,7 @@ A blazingly fast, fully stateless, AI-driven compliance engine built to autonomo
 - **Smart Page Batching**: Slashes LLM API costs by 95% by grouping and processing 5 PDF pages per batch for the LLM agent.
 - **Beautiful PDF Reporting**: Generates a visually stunning, downloadable PDF report via `ReportLab` complete with metadata, a grey summary tally, and color-coded tables grouping violations by Severity (Critical, High, Medium, Low).
 - **Interactive Rules Engine**: A sleek Streamlit UI allows you to add, edit, and toggle custom rules on the fly, including explicit Target Severity overrides. 
+- **Telemetry & Evaluation**: Deep integration with Langfuse. Tracks tokens, API calls, latencies, and uses an asynchronous LLM-as-a-judge evaluator to score extractions on Faithfulness, Relevance, Severity, and Context Quality. You can build powerful dashboards natively in the Langfuse UI.
 
 ## 🏗️ Architecture Stack
 
@@ -48,9 +49,12 @@ A blazingly fast, fully stateless, AI-driven compliance engine built to autonomo
    ```
 
 4. **Set Environment Variables:**
-   Create a `.env` file in the root directory and add your Groq API key:
+   Create a `.env` file in the root directory and add your keys:
    ```env
    GROQ_API_KEY=your_groq_api_key_here
+   LANGFUSE_SECRET_KEY=your_langfuse_secret_key
+   LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
+   LANGFUSE_HOST="https://cloud.langfuse.com" # Or your self-hosted URL
    ```
 
 5. **Run the Application:**

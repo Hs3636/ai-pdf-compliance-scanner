@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.utils.logger import get_logger
 from app.prompts.unified_prompt import UNIFIED_SYSTEM_PROMPT
 from langfuse.langchain import CallbackHandler
+from app.agents.evaluator import run_evaluations_async
 import os
 
 logger = get_logger(__name__)
@@ -80,6 +81,7 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
         
     # Setup Langfuse handler if keys exist
     callbacks = []
+    langfuse_handler = None
     if os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY"):
         try:
             langfuse_handler = CallbackHandler()
@@ -128,6 +130,18 @@ def run_unified_scan(pages: List[Dict[str, Any]], custom_rules: List[Dict[str, A
                     "severity": v.get("severity", "High"),
                     "confidence_score": v.get("confidence_score", 1.0)
                 })
+                
+            # Trigger asynchronous evaluation
+            if langfuse_handler and extracted_violations:
+                try:
+                    trace_id = getattr(langfuse_handler, "last_trace_id", None)
+                    if trace_id:
+                        logger.info(f"Retrieved root trace_id: {trace_id}")
+                        run_evaluations_async(trace_id, extracted_violations, batch_text)
+                    else:
+                        logger.warning("Could not fetch last_trace_id from langfuse_handler.")
+                except Exception as eval_err:
+                    logger.warning(f"Failed to trigger evaluation: {eval_err}")
                 
         except Exception as e:
             err_msg = str(e).lower()
